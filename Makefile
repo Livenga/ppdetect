@@ -1,7 +1,8 @@
 CC      = gcc
 FLAGS   = -g -Wall
-INCLUDE =
-LINK    =
+INCLUDE = -I./include
+LINK    = -lpng -lz -lm
+OPTION = -Wall -g -O2
 
 TARGET = ppdetect
 OBJDIR = objs
@@ -19,7 +20,7 @@ $(TARGET):$(OBJS)
 	$(CC) -o $@ $^ $(FLAGS) $(LINK)
 
 $(OBJDIR)/%.o:%.c
-	$(CC) -o $@ -c $< $(FLAGS) $(INCLUDE)
+	$(CC) -o $@ -c $< $(FLAGS) $(INCLUDE) $(OPTION)
 
 clear:
 	[ ! -d $(OBJDIR) ] || rm -rv $(OBJDIR)
