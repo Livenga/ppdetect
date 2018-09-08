@@ -3,9 +3,11 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <getopt.h>
+#include <time.h>
 
 #include "ppd_type.h"
 #include "util.h"
+#include "calc/calc.h"
 #include "canvas/canvas.h"
 
 
@@ -16,8 +18,8 @@ print_help(const char *app);
 static void
 print_version(const char *app);
 
-extern void
-run_histogram(const canvas_t *cv_cptr);
+extern ncanvas_t *
+run_kmeans(const ncanvas_t *ncv_cptr, const size_t div_size);
 
 
 int
@@ -27,11 +29,13 @@ main(int argc, char *argv[]) {
     {"version",          no_argument, 0, 'V'}, // バージョン
     {"histogram",        no_argument, 0, 'h'},
     {"color-correction", no_argument, 0, 'c'}, // 色補正
+    {"div-size",         required_argument, 0, 'd'},
     {0, 0, 0, 0},
   };
   
   int opt, longindex;
 
+  size_t div_size = 5;
   bool_t f_histogram = FALSE;
 
 
@@ -40,7 +44,11 @@ main(int argc, char *argv[]) {
     return EOF;
   }
 
-  while((opt = getopt_long(argc, argv, "HVhc",
+  // ランダムシード
+  srand((unsigned)time(NULL));
+
+  char *p_opt;
+  while((opt = getopt_long(argc, argv, "HVhcd:",
           longopts, &longindex)) > 0) {
     switch(opt) {
       //
@@ -55,6 +63,11 @@ main(int argc, char *argv[]) {
         f_histogram = TRUE;
         break;
 
+      case 'd':
+        p_opt = (optarg != NULL) ? optarg : argv[optind];
+        div_size = strtol(p_opt, NULL, 10);
+        break;
+
       case 'c':
         f_color_correction = TRUE;
         break;
@@ -62,13 +75,30 @@ main(int argc, char *argv[]) {
   }
 
 
+  ncanvas_t *n_ptr;
   canvas_t *target_ptr;
+
   target_ptr = cv_png_read(argv[argc - 1]);
+  n_ptr      = cv2ncv(target_ptr);
 
   if(f_histogram == TRUE) {
     run_histogram(target_ptr);
   }
-  
+
+
+  canvas_t  *k_cptr;
+  ncanvas_t *k_nptr;
+
+  k_nptr = run_kmeans(n_ptr, div_size);
+  k_cptr = ncv2cv(k_nptr);
+
+  cv_png_write("output.png", k_cptr);
+
+  ncv_free(k_nptr);
+  cv_free(k_cptr);
+
+
+  ncv_free(n_ptr);
   cv_free(target_ptr);
 
   return 0;
@@ -77,7 +107,11 @@ main(int argc, char *argv[]) {
 
 static void
 print_help(const char *app) {
-  printf("Help\n");
+  printf("Usage: %s [OPTIONS] [image path]\n\n", app);
+  printf("[Options]\n");
+  printf("   --div-size,         -d : 分割サイズ(Default = 5)\n");
+  printf("   --color-correction, -c : 色補正(Default = False)\n");
+  printf("   --histogram,        -h : ヒストグラム\n");
 
   exit(0);
 }
