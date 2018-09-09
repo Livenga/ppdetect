@@ -39,7 +39,7 @@ cv_png_read(const char *png_path) {
 
   int      i;
   uint32_t width, height, data_size;
-  color_t  color_type;
+  color_type_t  color_type;
   canvas_t *png_cv;
 
 

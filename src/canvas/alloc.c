@@ -7,7 +7,7 @@
 
 
 static uint8_t
-_cv_get_data_size(color_t color_type) {
+_cv_get_data_size(color_type_t color_type) {
   switch(color_type) {
     case GRAY: return 1;
     case GA:   return 2;
@@ -24,13 +24,13 @@ cv_get_data_size(canvas_common_t *cv_ptr) {
 }
 
 uint8_t
-cv_get_data_size_v(color_t color_type) {
+cv_get_data_size_v(color_type_t color_type) {
   return _cv_get_data_size(color_type);
 }
 
 
 canvas_t *
-cv_alloc(uint32_t width, uint32_t height, color_t color_type) {
+cv_alloc(uint32_t width, uint32_t height, color_type_t color_type) {
   canvas_t *cv_ptr;
 
 
@@ -55,7 +55,7 @@ cv_alloc(uint32_t width, uint32_t height, color_t color_type) {
 }
 
 ncanvas_t *
-ncv_alloc(uint32_t width, uint32_t height, color_t color_type) {
+ncv_alloc(uint32_t width, uint32_t height, color_type_t color_type) {
   ncanvas_t *ncv_ptr;
 
 

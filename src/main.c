@@ -39,6 +39,16 @@ main(int argc, char *argv[]) {
   bool_t f_histogram = FALSE;
 
 
+  canvas_t *cv_ptr;
+  color_t blue = { 0x00, 0x00, 0xFF };
+  cv_ptr = cv_alloc(1024, 1024, RGB);
+  cv_draw_circuit_c(cv_ptr, 0, 0, 128, 128, blue);
+
+  cv_png_write("output.png", cv_ptr);
+
+  return 0;
+
+
   if(argc < 2) {
     fprintf(stderr, "%s: Operand Error.\n", argv[0]);
     return EOF;

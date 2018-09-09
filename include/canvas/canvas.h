@@ -14,12 +14,12 @@
 extern uint8_t
 cv_get_data_size(canvas_common_t *cv_ptr);
 extern uint8_t
-cv_get_data_size_v(color_t color_type);
+cv_get_data_size_v(color_type_t color_type);
 
 extern canvas_t *
-cv_alloc(uint32_t width, uint32_t height, color_t color_type);
+cv_alloc(uint32_t width, uint32_t height, color_type_t color_type);
 extern ncanvas_t *
-ncv_alloc(uint32_t width, uint32_t height, color_t color_type);
+ncv_alloc(uint32_t width, uint32_t height, color_type_t color_type);
 
 extern void
 cv_free(canvas_t *cv_ptr);
@@ -46,5 +46,16 @@ extern ncanvas_t *
 cv2ncv(const canvas_t *cv_cptr);
 extern canvas_t *
 ncv2cv(const ncanvas_t *ncv_cptr);
+
+extern canvas_t *
+cv_draw_circuit_c(canvas_t *self,
+    int x,     int y,
+    int width, int height,
+    color_t color);
+
+extern canvas_t *
+cv_draw_circuit(canvas_t *self,
+    int x,     int y,
+    int width, int height);
 
 #endif
