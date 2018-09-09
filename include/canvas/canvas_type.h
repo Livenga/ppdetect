@@ -51,4 +51,17 @@ typedef struct {
   double *data;
 } ncanvas_t;
 
+
+#define FILTER_SIZE(flt)      (sizeof(double) * (flt.width * flt.height))
+#define PFILTER_SIZE(flt_ptr) (sizeof(double) * flt_ptr->width * flt_ptr->height)
+
+typedef struct {
+  uint32_t width;
+  uint32_t height;
+  double   sigma;
+
+  double *data;
+} filter_t;
+
+
 #endif
