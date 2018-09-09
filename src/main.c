@@ -88,11 +88,39 @@ main(int argc, char *argv[]) {
 
   canvas_t  *k_cptr;
   ncanvas_t *k_nptr;
-
   k_nptr = run_kmeans(n_ptr, div_size);
   k_cptr = ncv2cv(k_nptr);
 
-  cv_png_write("output.png", k_cptr);
+  char buf[1024];
+  {
+    char *p_str = NULL, *p_end = NULL;
+    memset((void *)buf, '\0', sizeof(buf));
+
+    p_str = (char *)argv[argc - 1];
+    for(p_str = strchr(p_str, '/');
+        p_str != NULL;
+        p_str = strchr(p_str, '/')) { p_end = ++p_str; }
+
+    p_str = (p_end != NULL) ? p_end : argv[argc - 1];
+
+    if((p_end = strchr(p_str, '.')) != NULL) {
+      const size_t _name_length = (p_end - p_str) + 1;
+      char *_name;
+      char *_dt = get_datetime_s();
+
+      _name = (char *)calloc(_name_length, sizeof(char));
+      memcpy((void *)_name, (const void *)p_str, sizeof(char) * (p_end - p_str));
+
+      sprintf(buf, "%s_%ld_%s.png", _name, div_size, _dt);
+
+      // _name 解放
+      memset((void *)_name, '\0', sizeof(char) * _name_length);
+      free((void *)_name); _name = NULL;
+    } else {
+      sprintf(buf, "output.png");
+    }
+  }
+  cv_png_write(buf, k_cptr);
 
   ncv_free(k_nptr);
   cv_free(k_cptr);
