@@ -99,3 +99,19 @@ ncv_inverse(ncanvas_t *ncv_ptr) {
     }
   }
 }
+
+void
+ncv_binarize(ncanvas_t *ncv_ptr, double threshold) {
+  int i, j;
+
+
+  if(ncv_ptr->color_type != GRAY) { return; }
+
+  for(i = 0; i < ncv_ptr->height; ++i) {
+    for(j = 0; j < ncv_ptr->width; ++j) {
+      const size_t _offset = i * ncv_ptr->width + j;
+
+      *(ncv_ptr->data + _offset) = (*(ncv_ptr->data + _offset) > threshold) ? 1.0 : 0.0;
+    }
+  }
+}

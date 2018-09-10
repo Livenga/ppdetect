@@ -47,6 +47,9 @@ ncv_grayscale(const ncanvas_t *ncv_cptr);
 extern void
 ncv_inverse(ncanvas_t *ncv_ptr);
 
+extern void
+ncv_binarize(ncanvas_t *ncv_ptr, double threshold);
+
 
 /* src/canvas/util.c */
 extern ncanvas_t *
