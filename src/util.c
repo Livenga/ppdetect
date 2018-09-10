@@ -33,7 +33,7 @@ is_directory(const char *path) {
 }
 
 
-static char _str_dt[128];
+static char _str_dt[128], _name_buf[1024];
 
 char *
 get_datetime_s(void) {
@@ -52,6 +52,46 @@ get_datetime_s(void) {
       tm->tm_hour, tm->tm_min, tm->tm_sec);
 
   return (char *)_str_dt;
+}
+
+char *
+get_output_filename(const char *target, const char *attr, const char *extend) {
+  char *p_str, *p_end, *p_extend;
+  char *p_name;
+
+
+  memset((void *)_name_buf, '\0', sizeof(_name_buf));
+
+  p_end = NULL;
+  for(p_str = strchr(target, '/'); p_str != NULL; p_str = strchr(p_end, '/')) {
+    p_end = p_str + 1;
+  }
+
+  p_str    = (p_end    != NULL) ? p_end : (char *)target;
+  p_extend = strchr(p_str, '.');
+  const size_t name_len = (p_extend != NULL) ? (p_extend - p_str) : strlen(p_str);
+
+  p_name = (char *)calloc(name_len + 1, sizeof(char));
+  memcpy((void *)p_name, (const void *)p_str, sizeof(char) * name_len);
+
+  size_t path_length;
+  path_length  = name_len + strlen(extend) + (attr == NULL ? 0 : strlen(attr)) + 25;
+
+  if(path_length < 1024) {
+    if(attr != NULL) {
+      sprintf(_name_buf, "%s_%s_%s.%s", get_datetime_s(), p_name, attr, extend);
+    } else {
+      sprintf(_name_buf, "%s_%s.%s", get_datetime_s(), p_name, extend);
+    }
+  } else {
+    sprintf(_name_buf, "output.%s", extend);
+  }
+
+  // *p_name 解放
+  memset((void *)p_name, '\0', sizeof(char) * name_len);
+  free((void *)p_name); p_name = NULL;
+
+  return (char *)_name_buf;
 }
 
 

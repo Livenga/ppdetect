@@ -10,6 +10,9 @@ is_exists(const char *path);
 extern bool_t
 is_directory(const char *path);
 
+extern char *
+get_output_filename(const char *target, const char *attr, const char *extend);
+
 extern int
 eprintf(FILE *strm, const char *fn, const char *param);
 extern char *
