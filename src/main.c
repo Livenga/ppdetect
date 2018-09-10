@@ -8,8 +8,10 @@
 #include "ppd_type.h"
 #include "util.h"
 #include "calc/calc.h"
+#include "calc/calc.h"
 #include "canvas/canvas.h"
 
+//#define _ENABLE_GAUSSIAN 1
 
 bool_t f_color_correction = 0;
 
@@ -18,8 +20,11 @@ print_help(const char *app);
 static void
 print_version(const char *app);
 
-extern ncanvas_t *
-run_kmeans(const ncanvas_t *ncv_cptr, const size_t div_size);
+
+
+/* src/calc/harris.c */
+extern harris_point_t *
+harris_corner_detector(const ncanvas_t *ncv_cptr, double *threshold);
 
 
 int
@@ -87,7 +92,7 @@ main(int argc, char *argv[]) {
 
 
   canvas_t  *k_cptr;
-  ncanvas_t *k_nptr;
+  ncanvas_t *k_nptr, *kg_nptr;
   k_nptr = run_kmeans(n_ptr, div_size);
   k_cptr = ncv2cv(k_nptr);
 
@@ -111,7 +116,11 @@ main(int argc, char *argv[]) {
       _name = (char *)calloc(_name_length, sizeof(char));
       memcpy((void *)_name, (const void *)p_str, sizeof(char) * (p_end - p_str));
 
-      sprintf(buf, "%s_%ld_%s.png", _name, div_size, _dt);
+      if((_name_length + 23) < 1023) {
+        sprintf(buf, "%s_%ld_%s.png", _name, div_size, _dt);
+      } else {
+        sprintf(buf, "output.png");
+      }
 
       // _name 解放
       memset((void *)_name, '\0', sizeof(char) * _name_length);
@@ -120,8 +129,43 @@ main(int argc, char *argv[]) {
       sprintf(buf, "output.png");
     }
   }
-  cv_png_write(buf, k_cptr);
+  ncv_png_write(buf, k_nptr);
 
+  // 反転
+  ncv_inverse(k_nptr);
+  kg_nptr = ncv_grayscale(k_nptr);
+
+
+  // Harris コーナー検出実行
+  double threshold;
+  harris_point_t *pts_ptr, *pp;
+
+#ifdef _ENABLE_GAUSSIAN
+  ncanvas_t *gaussian_nptr;
+
+  filter_t *f_gaussian;
+  f_gaussian = filter_create_gaussian(target_ptr->width / 20, target_ptr->width / 20, 1.0);
+
+  gaussian_nptr = filter_convolution(kg_nptr, f_gaussian);
+  filter_free(f_gaussian);
+
+  pts_ptr = harris_corner_detector(gaussian_nptr, &threshold);
+  
+  ncv_free(gaussian_nptr);
+#else
+  pts_ptr = harris_corner_detector(kg_nptr, &threshold);
+#endif
+
+  for(pp = pts_ptr; pp != NULL; pp = pp->next) {
+    if(pp->rate >= threshold) {
+      //printf("(%d, %d)\n", pp->x, pp->y);
+      cv_draw_circuit(target_ptr, pp->x, pp->y, 4, 4);
+    }
+  }
+  cv_png_write("output.png", target_ptr);
+
+
+  ncv_free(kg_nptr);
   ncv_free(k_nptr);
   cv_free(k_cptr);
 

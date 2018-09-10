@@ -205,3 +205,18 @@ cv_png_write(const char *png_path, const canvas_t *cv_cptr) {
 
   return 0;
 }
+
+
+int
+ncv_png_write(const char *path, const ncanvas_t *ncv_cptr) {
+  int status;
+  canvas_t *cv_ptr;
+
+  status = EOF;
+  if((cv_ptr = ncv2cv(ncv_cptr)) != NULL) {
+    status = cv_png_write(path, cv_ptr);
+    cv_free(cv_ptr);
+  }
+
+  return status;
+}

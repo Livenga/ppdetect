@@ -20,4 +20,12 @@ typedef struct {
   double value[3];
 } gcenter_t;
 
+typedef struct _harris_point_t harris_point_t;
+typedef struct _harris_point_t {
+  uint32_t x, y;
+  double   rate;
+
+  harris_point_t *next;
+} harris_point_t;
+
 #endif

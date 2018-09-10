@@ -33,6 +33,7 @@ filter_create_gaussian(uint32_t width, uint32_t height, double sigma) {
 
   for(y = 0; y < height; ++y) {
     const int _y = y - (height / 2);
+
     for(x = 0; x < width; ++x) {
       const int _x = x - (width / 2);
 
@@ -59,16 +60,16 @@ _filter_create_sobel(uint8_t is_x) {
         *(fx_sobel->data + 1) =  0.0;
         *(fx_sobel->data + 2) =  1.0;
 
-        *(fx_sobel->data + 3) = -1.0;
+        *(fx_sobel->data + 3) = -2.0;
         *(fx_sobel->data + 4) =  0.0;
-        *(fx_sobel->data + 5) =  1.0;
+        *(fx_sobel->data + 5) =  2.0;
         
         *(fx_sobel->data + 6) = -1.0;
         *(fx_sobel->data + 7) =  0.0;
         *(fx_sobel->data + 8) =  1.0;
       } else {
         *(fx_sobel->data + 0) = -1.0;
-        *(fx_sobel->data + 1) = -1.0;
+        *(fx_sobel->data + 1) = -2.0;
         *(fx_sobel->data + 2) = -1.0;
 
         *(fx_sobel->data + 3) =  0.0;
@@ -76,7 +77,7 @@ _filter_create_sobel(uint8_t is_x) {
         *(fx_sobel->data + 5) =  0.0;
         
         *(fx_sobel->data + 6) =  1.0;
-        *(fx_sobel->data + 7) =  1.0;
+        *(fx_sobel->data + 7) =  2.0;
         *(fx_sobel->data + 8) =  1.0;
       }
     } else {
@@ -98,6 +99,59 @@ filter_create_sobel_x(void) {
 filter_t *
 filter_create_sobel_y(void) {
   return _filter_create_sobel(/*is_x*/_FLT_FALSE);
+}
+
+double
+filter_convolution_partial(
+    const ncanvas_t *self,
+    uint32_t        pos_x,
+    uint32_t        pos_y,
+    const filter_t  *filter,
+    double          outside) {
+  int i, j;
+  double sum;
+
+  sum = 0.0;
+  for(i = 0; i < filter->height; ++i) {
+    const uint32_t _y = pos_y + (i - (filter->height / 2));
+
+    for(j = 0; j < filter->width; ++j) {
+      const uint32_t _x = pos_x + (j - (filter->width / 2));
+
+      // 対象となる画像データ(ncanvas_t->data)が範囲外の場合, 
+      // 引数 outside の数値を使用する.
+      if(_x >= self->width || _x < 0 ||
+          _y >= self->height || _y < 0) {
+        sum += *(filter->data + (i * filter->width + j)) * outside;
+      } else {
+        sum += *(filter->data + (i * filter->width + j)) *
+          *(self->data + (_y * self->width + _x));
+      }
+    }
+  }
+
+  return sum;
+}
+
+ncanvas_t *
+filter_convolution(ncanvas_t *ncv_ptr, const filter_t *filter) {
+  int i, j;
+  ncanvas_t *ret_ptr;
+
+
+  ret_ptr = ncv_alloc(ncv_ptr->width, ncv_ptr->height, GRAY);
+  if(ret_ptr == NULL) {
+    return NULL;
+  }
+
+  for(i = 0; i < ncv_ptr->height; ++i) {
+    for(j = 0; j < ncv_ptr->width; ++j) {
+      *(ret_ptr->data + (i * ncv_ptr->width + j)) =
+        filter_convolution_partial(ncv_ptr, j, i, filter, 0.0);
+    }
+  }
+
+  return ret_ptr;
 }
 
 

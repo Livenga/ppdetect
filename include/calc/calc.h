@@ -2,6 +2,7 @@
 #define _CALC_H
 
 #include "canvas/canvas.h"
+#include "calc/calc_type.h"
 
 /* src/calc/histogram.c */
 extern void

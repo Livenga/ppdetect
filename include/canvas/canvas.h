@@ -34,11 +34,18 @@ extern ncanvas_t *
 cv_png_read_n(const char *png_path);
 extern int
 cv_png_write(const char *png_path, const canvas_t *cv_cptr);
+extern int
+ncv_png_write(const char *path, const ncanvas_t *ncv_cptr);
 
 
 /* src/canvas/convert.c */
 extern canvas_t *
 cv_grayscale(const canvas_t *cv_cptr);
+extern ncanvas_t *
+ncv_grayscale(const ncanvas_t *ncv_cptr);
+
+extern void
+ncv_inverse(ncanvas_t *ncv_ptr);
 
 
 /* src/canvas/util.c */
@@ -67,6 +74,17 @@ extern filter_t *
 filter_create_sobel_x(void);
 extern filter_t *
 filter_create_sobel_y(void);
+
+extern double
+filter_convolution_partial(
+    const ncanvas_t *self,
+    uint32_t        pos_x,
+    uint32_t        pos_y,
+    const filter_t  *filter,
+    double          outside);
+
+extern ncanvas_t *
+filter_convolution(ncanvas_t *ncv_ptr, const filter_t *filter);
 
 extern void
 filter_free(filter_t *flt_ptr);
