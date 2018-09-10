@@ -7,4 +7,9 @@
 extern void
 run_histogram(const canvas_t *cv_cptr);
 
+
+/* src/calc/kmeans.c */
+extern ncanvas_t *
+run_kmeans(const ncanvas_t *ncv_cptr, const size_t div_size);
+
 #endif

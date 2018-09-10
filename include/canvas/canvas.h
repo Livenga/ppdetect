@@ -62,6 +62,12 @@ cv_draw_circuit(canvas_t *self,
 /* src/canvas/filter.c */
 extern filter_t *
 filter_create_gaussian(uint32_t width, uint32_t height, double sigma);
+
+extern filter_t *
+filter_create_sobel_x(void);
+extern filter_t *
+filter_create_sobel_y(void);
+
 extern void
 filter_free(filter_t *flt_ptr);
 

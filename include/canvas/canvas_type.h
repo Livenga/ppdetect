@@ -58,7 +58,7 @@ typedef struct {
 typedef struct {
   uint32_t width;
   uint32_t height;
-  double   sigma;
+  /*double   sigma;*/
 
   double *data;
 } filter_t;
