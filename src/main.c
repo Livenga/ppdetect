@@ -4,6 +4,7 @@
 #include <unistd.h>
 #include <getopt.h>
 #include <time.h>
+#include <math.h>
 
 #include "ppd_type.h"
 #include "util.h"
@@ -20,10 +21,12 @@ static void
 print_version(const char *app);
 
 
+/* src/calc/hough.c */
+extern void
+run_hough_transform(
+    const harris_point_t *harris_points,
+    const double          harris_threshold);
 
-/* src/calc/harris.c */
-extern harris_point_t *
-harris_corner_detector(const ncanvas_t *ncv_cptr, double *threshold);
 
 
 int
@@ -124,10 +127,7 @@ main(int argc, char *argv[]) {
   kg_nptr = ncv_grayscale(k_nptr);
 
 
-  // Harris コーナー検出実行
-  double harris_threshold;
-  harris_point_t *pts_ptr, *pp;
-
+  // 前処理
   ncanvas_t *ncv_target_ptr;
 
   // NOTE: コーナー検出を行う前にガウシアンフィルタを適応させることで
@@ -156,8 +156,8 @@ main(int argc, char *argv[]) {
 
 
     // 画像出力
-    output_name_s = get_output_filename(argv[argc - 1], "gaussian", "png");
-    ncv_png_write(output_name_s, ncv_target_ptr);
+    //output_name_s = get_output_filename(argv[argc - 1], "gaussian", "png");
+    //ncv_png_write(output_name_s, ncv_target_ptr);
   } else {
     if(f_enable_binarise == TRUE) {
       fprintf(stderr, "* 2値化処理の実行(閾値: %f)\n", bin_threshold);
@@ -166,22 +166,44 @@ main(int argc, char *argv[]) {
 
     ncv_target_ptr = kg_nptr;
   }
+  // 画像出力
+  output_name_s = get_output_filename(argv[argc - 1], "pre_processed", "png");
+  ncv_png_write(output_name_s, ncv_target_ptr);
+
 
   // Harris コーナー検出の実行
+  double harris_threshold;
+  harris_point_t *harris_points, *harris_cursor;
+
   fprintf(stderr, "* Harris コーナー検出実行\n");
-  pts_ptr = harris_corner_detector(ncv_target_ptr, &harris_threshold);
+  harris_points = harris_corner_detector(ncv_target_ptr, &harris_threshold);
 
 
-  for(pp = pts_ptr; pp != NULL; pp = pp->next) {
-    if(pp->rate >= harris_threshold) {
+  // 元画像に対してい, 検出した点を中心にした円を描く
+  fprintf(stderr, "* 元画像(%s)に円を描く.\n", argv[argc - 1]);
+#if 1
+  for(harris_cursor  = harris_points;
+      harris_cursor != NULL;
+      harris_cursor  = harris_cursor->next) {
+    if(harris_cursor->rate >= harris_threshold) {
       //printf("(%d, %d)\n", pp->x, pp->y);
-      cv_draw_circuit(target_ptr, pp->x, pp->y, 24, 24);
+      cv_draw_circuit(target_ptr,
+          harris_cursor->x, harris_cursor->y,
+          8, 8);
     }
   }
-
+  // 保存
   output_name_s = get_output_filename(argv[argc - 1], "harris", "png");
   cv_png_write(output_name_s, target_ptr);
+#endif
 
+
+  // Hough変換
+  fprintf(stderr, "* [T] Hough 変換\n");
+  run_hough_transform(harris_points, harris_threshold);
+
+
+  harris_point_release(harris_points);
 
   //ncv_free(kg_nptr);
   ncv_free(k_nptr);

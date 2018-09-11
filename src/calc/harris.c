@@ -27,6 +27,16 @@ harris_point_new(uint32_t x, uint32_t y, double rate) {
   return p_ptr;
 }
 
+size_t
+harris_point_count(const harris_point_t *p) {
+  const harris_point_t *p_cur;
+  size_t count = 0;
+
+  for(p_cur = p; p_cur != NULL; p_cur = p_cur->next) { ++count; }
+
+  return count;
+}
+
 
 void
 harris_point_release(harris_point_t *pt_ptr) {
@@ -121,7 +131,8 @@ harris_corner_detector(const ncanvas_t *ncv_cptr, double *threshold) {
       max_rate = hp_p->rate;
     }
   }
-  *threshold = max_rate - (max_rate / 10.0);
+  //*threshold = max_rate - (max_rate / 10.0);
+  *threshold = max_rate - (max_rate / 20.0);
 
   fprintf(stderr, "* Max rate      : %f\n", max_rate);
   fprintf(stderr, "* Rate threshold: %f\n", *threshold);
