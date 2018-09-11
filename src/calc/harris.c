@@ -10,7 +10,7 @@
 
 
 #define _K (0.24)
-#define _PPD_OUTPUT_CSV
+//#define _PPD_OUTPUT_CSV
 
 
 harris_point_t *
@@ -73,9 +73,15 @@ harris_corner_detector(const ncanvas_t *ncv_cptr, double *threshold) {
       double _w, _ix, _iy, _ixx, _ixy, /*_iyx, */ _iyy;
       double _b, _c, _l1, _l2, _rate, _abs_rate;
 
+#if 1
       _w  = filter_convolution_partial(ncv_cptr, j, i, f_gauss, 0.0);
       _ix = filter_convolution_partial(ncv_cptr, j, i, fx_sobel, 0.0);
       _iy = filter_convolution_partial(ncv_cptr, j, i, fy_sobel, 0.0);
+#else
+      _w  = filter_convolution_partial(ncv_cptr, j, i, f_gauss, 1.0);
+      _ix = filter_convolution_partial(ncv_cptr, j, i, fx_sobel, 1.0);
+      _iy = filter_convolution_partial(ncv_cptr, j, i, fy_sobel, 1.0);
+#endif
 
       _ixx = _w * (_ix * _ix);
       _ixy = _w * (_ix * _iy);

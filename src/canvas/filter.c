@@ -146,8 +146,15 @@ filter_convolution(ncanvas_t *ncv_ptr, const filter_t *filter) {
 
   for(i = 0; i < ncv_ptr->height; ++i) {
     for(j = 0; j < ncv_ptr->width; ++j) {
+      double _conv;
+
+      _conv = filter_convolution_partial(ncv_ptr, j, i, filter, 0.0);
+#if 1
       *(ret_ptr->data + (i * ncv_ptr->width + j)) =
-        filter_convolution_partial(ncv_ptr, j, i, filter, 0.0);
+        (_conv > 1.0) ? 1.0 : (_conv < 0.0) ? 0.0 : _conv;
+#else
+      *(ret_ptr->data + (i * ncv_ptr->width + j)) = _conv;
+#endif
     }
   }
 

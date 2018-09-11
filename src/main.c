@@ -11,7 +11,6 @@
 #include "calc/calc.h"
 #include "canvas/canvas.h"
 
-//#define _ENABLE_GAUSSIAN 1
 
 bool_t f_color_correction = 0;
 
@@ -35,13 +34,17 @@ main(int argc, char *argv[]) {
     {"histogram",        no_argument, 0, 'h'},
     {"color-correction", no_argument, 0, 'c'}, // 色補正
     {"div-size",         required_argument, 0, 'd'},
+    {"enable-gaussian", no_argument, 0, 'g'},
+    {"enable-binarise", no_argument, 0, 'b'},
     {0, 0, 0, 0},
   };
   
   int opt, longindex;
 
   size_t div_size = 5;
-  bool_t f_histogram = FALSE;
+  bool_t f_histogram       = FALSE,
+         f_enable_gaussian = FALSE,
+         f_enable_binarise = FALSE;
 
   
   if(argc < 2) {
@@ -53,7 +56,7 @@ main(int argc, char *argv[]) {
   srand((unsigned)time(NULL));
 
   char *p_opt;
-  while((opt = getopt_long(argc, argv, "HVhcd:",
+  while((opt = getopt_long(argc, argv, "HVhcd:gb",
           longopts, &longindex)) > 0) {
     switch(opt) {
       //
@@ -76,96 +79,111 @@ main(int argc, char *argv[]) {
       case 'c':
         f_color_correction = TRUE;
         break;
+
+      case 'g':
+        f_enable_gaussian = TRUE;
+        break;
+      case 'b':
+        f_enable_binarise = TRUE;
+        break;
     }
   }
 
 
+  // 画像データの読み込み
   ncanvas_t *n_ptr;
   canvas_t *target_ptr;
 
   target_ptr = cv_png_read(argv[argc - 1]);
   n_ptr      = cv2ncv(target_ptr);
 
+  // ヒストグラムの生成
   if(f_histogram == TRUE) {
+    fprintf(stderr, "* ヒストグラムの生成\n");
     run_histogram(target_ptr);
   }
 
 
+  //
+  char   *output_name_s;
+  double bin_threshold;
+
   canvas_t  *k_cptr;
   ncanvas_t *k_nptr, *kg_nptr;
-  k_nptr = run_kmeans(n_ptr, div_size);
+
+
+  fprintf(stderr, "* k平均法の実行\n");
+  k_nptr = run_kmeans(n_ptr, div_size, &bin_threshold);
   k_cptr = ncv2cv(k_nptr);
 
-  char buf[1024];
-  {
-    char *p_str = NULL, *p_end = NULL;
-    memset((void *)buf, '\0', sizeof(buf));
-
-    p_str = (char *)argv[argc - 1];
-    for(p_str = strchr(p_str, '/');
-        p_str != NULL;
-        p_str = strchr(p_str, '/')) { p_end = ++p_str; }
-
-    p_str = (p_end != NULL) ? p_end : argv[argc - 1];
-
-    if((p_end = strchr(p_str, '.')) != NULL) {
-      const size_t _name_length = (p_end - p_str) + 1;
-      char *_name;
-      char *_dt = get_datetime_s();
-
-      _name = (char *)calloc(_name_length, sizeof(char));
-      memcpy((void *)_name, (const void *)p_str, sizeof(char) * (p_end - p_str));
-
-      if((_name_length + 23) < 1023) {
-        sprintf(buf, "%s_%ld_%s.png", _name, div_size, _dt);
-      } else {
-        sprintf(buf, "output.png");
-      }
-
-      // _name 解放
-      memset((void *)_name, '\0', sizeof(char) * _name_length);
-      free((void *)_name); _name = NULL;
-    } else {
-      sprintf(buf, "output.png");
-    }
-  }
-  ncv_png_write(buf, k_nptr);
+  output_name_s = get_output_filename(argv[argc - 1], "kmeans", "png");
+  ncv_png_write(output_name_s, k_nptr);
 
   // 反転
-  ncv_inverse(k_nptr);
+  //ncv_inverse(k_nptr);
   kg_nptr = ncv_grayscale(k_nptr);
 
 
   // Harris コーナー検出実行
-  double threshold;
+  double harris_threshold;
   harris_point_t *pts_ptr, *pp;
 
-#ifdef _ENABLE_GAUSSIAN
-  ncanvas_t *gaussian_nptr;
+  ncanvas_t *ncv_target_ptr;
 
-  filter_t *f_gaussian;
-  f_gaussian = filter_create_gaussian(target_ptr->width / 20, target_ptr->width / 20, 1.0);
+  // NOTE: コーナー検出を行う前にガウシアンフィルタを適応させることで
+  // 検出精度が向上されたと思う.
+  //
+  // アンチエイリアスをしていないため, 傾斜が存在すると検出精度が低下.
+  // (検出点が多くなってしまうことを精度の低下としている)
+  if(f_enable_gaussian == TRUE) {
+    filter_t *f_gaussian;
+    
+    //
+    if(f_enable_binarise == TRUE) {
+      fprintf(stderr, "* 2値化処理の実行(閾値: %f)\n", bin_threshold);
+      ncv_binarize(kg_nptr, bin_threshold);
+    }
 
-  gaussian_nptr = filter_convolution(kg_nptr, f_gaussian);
-  filter_free(f_gaussian);
+    // XXX: ガウシアンフィルタのサイズとシグマの値は,
+    // 現在結果を見て判断している.
+    // 画像サイズとの関係性が分かり次第修正する必要がある.
+    //f_gaussian = filter_create_gaussian(8, 8, bin_threshold);
+    f_gaussian = filter_create_gaussian(8, 8, 0.65);
+    fprintf(stderr, "* ガウシアンフィルタを適応(%dx%d)\n", f_gaussian->width, f_gaussian->height);
 
-  pts_ptr = harris_corner_detector(gaussian_nptr, &threshold);
-  
-  ncv_free(gaussian_nptr);
-#else
-  pts_ptr = harris_corner_detector(kg_nptr, &threshold);
-#endif
+    ncv_target_ptr = filter_convolution(kg_nptr, f_gaussian);
+    filter_free(f_gaussian);
+
+
+    // 画像出力
+    output_name_s = get_output_filename(argv[argc - 1], "gaussian", "png");
+    ncv_png_write(output_name_s, ncv_target_ptr);
+  } else {
+    if(f_enable_binarise == TRUE) {
+      fprintf(stderr, "* 2値化処理の実行(閾値: %f)\n", bin_threshold);
+      ncv_binarize(kg_nptr, bin_threshold);
+    }
+
+    ncv_target_ptr = kg_nptr;
+  }
+
+  // Harris コーナー検出の実行
+  fprintf(stderr, "* Harris コーナー検出実行\n");
+  pts_ptr = harris_corner_detector(ncv_target_ptr, &harris_threshold);
+
 
   for(pp = pts_ptr; pp != NULL; pp = pp->next) {
-    if(pp->rate >= threshold) {
+    if(pp->rate >= harris_threshold) {
       //printf("(%d, %d)\n", pp->x, pp->y);
-      cv_draw_circuit(target_ptr, pp->x, pp->y, 4, 4);
+      cv_draw_circuit(target_ptr, pp->x, pp->y, 24, 24);
     }
   }
-  cv_png_write("output.png", target_ptr);
+
+  output_name_s = get_output_filename(argv[argc - 1], "harris", "png");
+  cv_png_write(output_name_s, target_ptr);
 
 
-  ncv_free(kg_nptr);
+  //ncv_free(kg_nptr);
   ncv_free(k_nptr);
   cv_free(k_cptr);
 
