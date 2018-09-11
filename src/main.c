@@ -21,14 +21,6 @@ static void
 print_version(const char *app);
 
 
-/* src/calc/hough.c */
-extern void
-run_hough_transform(
-    const harris_point_t *harris_points,
-    const double          harris_threshold);
-
-
-
 int
 main(int argc, char *argv[]) {
   const struct option longopts[] = {
@@ -199,8 +191,24 @@ main(int argc, char *argv[]) {
 
 
   // Hough変換
+  int theta_i;
+  hough_point_t **hp_ptr;
+
   fprintf(stderr, "* [T] Hough 変換\n");
-  run_hough_transform(harris_points, harris_threshold);
+  hp_ptr = run_hough_transform(harris_points, harris_threshold);
+
+#if 0
+  for(theta_i = 0; theta_i < NUMBER_OF_HOUGH_POINT; ++theta_i) {
+    const hough_point_t *_hp = *(hp_ptr + theta_i), *_hp_c;
+    const double _base_rho = _hp->rho;
+
+    for(_hp_c = _hp->next; _hp_c != NULL; _hp_c = _hp_c->next) {
+      double _d_rho = _hp_c->rho - _base_rho;
+    }
+  }
+#endif
+
+  hough_points_release(hp_ptr);
 
 
   harris_point_release(harris_points);
@@ -224,6 +232,8 @@ print_help(const char *app) {
   printf("   --div-size,         -d : 分割サイズ(Default = 5)\n");
   printf("   --color-correction, -c : 色補正(Default = False)\n");
   printf("   --histogram,        -h : ヒストグラム\n");
+  printf("   --enable-binarise,  -b : 2値化\n");
+  printf("   --enable-gaussian,  -g : Gaussian フィルタの適応\n");
 
   exit(0);
 }

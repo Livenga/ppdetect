@@ -40,10 +40,14 @@ _calc_euclid(const double *ptr0, const double *ptr1, size_t size) {
 }
 #endif
 
+
+#if 0
 static int
 comp_scale(const void *p1, const void *p2) {
   return *(double *)p2 > *(double *)p1;
 }
+#endif
+
 
 static double
 _calc_out_threshold(const gcenter_t *g_ptr, size_t size) {
@@ -63,10 +67,18 @@ _calc_out_threshold(const gcenter_t *g_ptr, size_t size) {
       + (*(_g->value + 1) * 0.7152)
       + (*(_g->value + 2) * 0.0722);
 
-    printf("%f\n", *(scales + i));
+    fprintf(stderr, "* %f\n", *(scales + i));
   }
 
-  qsort(scales, size, sizeof(double *), comp_scale);
+  const int (*_comp_scale)(const void *, const void *) = ({
+      int _comp_scale(const void *p1, const void *p2) {
+      return *(double *)p2 > *(double *)p1;
+      };
+      _comp_scale;
+      });
+
+  //qsort(scales, size, sizeof(double *), comp_scale);
+  qsort(scales, size, sizeof(double *), _comp_scale);
   ret_value = *(scales + (size - 2));
 
   return ret_value;
@@ -192,10 +204,10 @@ run_kmeans(const ncanvas_t *ncv_cptr, const size_t div_size,
   }
 
   // 
-  printf("* クラスタの中央値\n");
+  fprintf(stderr, "* クラスタの中央値\n");
   for(i = 0; i < div_size; ++i) {
     _g_ptr = (gcenters + i);
-    printf("   %3d: (%f, %f, %f)\n", i,
+    fprintf(stderr, "   %3d: (%f, %f, %f)\n", i,
         _g_ptr->value[0], _g_ptr->value[1], _g_ptr->value[2]);
   }
 
