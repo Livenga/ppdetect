@@ -27,12 +27,30 @@ harris_point_new(uint32_t x, uint32_t y, double rate) {
   return p_ptr;
 }
 
+harris_point_t *
+harris_point_copy(harris_point_t *hrp) {
+  harris_point_t *p;
+
+  if((p = (harris_point_t *)calloc(1, sizeof(harris_point_t))) != NULL) {
+    p->x    = hrp->x;
+    p->y    = hrp->y;
+    p->rate = hrp->rate;
+    p->next = NULL;
+  }
+
+  return p;
+}
+
 size_t
 harris_point_count(const harris_point_t *p) {
   const harris_point_t *p_cur;
   size_t count = 0;
 
-  for(p_cur = p; p_cur != NULL; p_cur = p_cur->next) { ++count; }
+  for(p_cur = p;
+      p_cur != NULL;
+      p_cur = p_cur->next) {
+    ++count;
+  }
 
   return count;
 }
@@ -53,7 +71,7 @@ harris_point_release(harris_point_t *pt_ptr) {
 }
 
 harris_point_t *
-harris_corner_detector(const ncanvas_t *ncv_cptr, double *threshold) {
+harris_corner_detector(const ncanvas_t *ncv_cptr) {
 #ifdef _PPD_OUTPUT_CSV
   FILE *csv_fp;
 #endif
@@ -63,14 +81,14 @@ harris_corner_detector(const ncanvas_t *ncv_cptr, double *threshold) {
   harris_point_t *pt_root_ptr, *pt_cursor_ptr;
 
   
-  if(ncv_cptr == NULL || threshold == NULL) {
+  if(ncv_cptr == NULL) {
     return NULL;
   }
 
   pt_root_ptr   = NULL;
   pt_cursor_ptr = NULL;
 
-  f_gauss  = filter_create_gaussian(3, 3, 3.0);
+  f_gauss  = filter_create_gaussian(3, 3, 5.0);
   fx_sobel = filter_create_sobel_x();
   fy_sobel = filter_create_sobel_y();
 
@@ -123,20 +141,43 @@ harris_corner_detector(const ncanvas_t *ncv_cptr, double *threshold) {
     }
   }
 
-  double max_rate = 0.0;
-  harris_point_t *hp_p;
+  double max_rate = 0.0, threshold;
 
-  for(hp_p = pt_root_ptr; hp_p != NULL; hp_p = hp_p->next) {
-    if(max_rate < hp_p->rate) {
-      max_rate = hp_p->rate;
+  for(pt_cursor_ptr = pt_root_ptr;
+      pt_cursor_ptr != NULL;
+      pt_cursor_ptr = pt_cursor_ptr->next) {
+    if(max_rate < pt_cursor_ptr->rate) {
+      max_rate = pt_cursor_ptr->rate;
     }
   }
-  //*threshold = max_rate - (max_rate / 10.0);
-  *threshold = max_rate - (max_rate / 20.0);
+
+
+  //threshold = max_rate - (max_rate / 10.0);
+  threshold = max_rate - (max_rate / 5.0);
 
   fprintf(stderr, "* Max rate      : %f\n", max_rate);
-  fprintf(stderr, "* Rate threshold: %f\n", *threshold);
+  fprintf(stderr, "* Rate threshold: %f\n", threshold);
+ 
 
+  // 閾値以上の検出した点を抽出
+  harris_point_t *hp_thr_root = NULL, *hp_thr_cur = NULL;
+
+  for(pt_cursor_ptr = pt_root_ptr;
+      pt_cursor_ptr != NULL;
+      pt_cursor_ptr = pt_cursor_ptr->next) {
+    if(pt_cursor_ptr->rate >= threshold) {
+      if(hp_thr_root == NULL) {
+        hp_thr_root = harris_point_copy(pt_cursor_ptr);
+        hp_thr_cur  = hp_thr_root;
+      } else {
+        hp_thr_cur->next = harris_point_copy(pt_cursor_ptr);
+        hp_thr_cur       = hp_thr_cur->next;
+      }
+    }
+  }
+
+  harris_point_release(pt_root_ptr);
+  pt_root_ptr = hp_thr_root;
 
   filter_free(fy_sobel);
   filter_free(fx_sobel);
