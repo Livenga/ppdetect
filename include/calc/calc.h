@@ -22,7 +22,7 @@ extern void
 harris_point_release(harris_point_t *pt_ptr);
 
 extern harris_point_t *
-harris_corner_detector(const ncanvas_t *ncv_cptr, double *threshold);
+harris_corner_detector(const ncanvas_t *ncv_cptr);
 
 
 /* src/calc/hough.c */

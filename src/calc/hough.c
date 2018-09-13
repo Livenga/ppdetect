@@ -102,7 +102,7 @@ run_hough_transform(
       harris_cursor = harris_cursor->next) {
     if(harris_cursor->rate >= harris_threshold) {
       for(theta_i = 0; theta_i < NUMBER_OF_HOUGH_POINT; ++theta_i) {
-        const double _rad = (((double)theta_i - 90.0) * M_PI) / 180.0;
+        const double _rad = (((double)(theta_i + 5) - 90.0) * M_PI) / 180.0;
         hough_point_t *_hp;
 
 

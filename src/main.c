@@ -20,6 +20,20 @@ print_help(const char *app);
 static void
 print_version(const char *app);
 
+void
+hough_draw_line(canvas_t *self, double rho, double radian) {
+  int x, y;
+
+  for(x = 0; x < self->width; ++x) {
+    y = (int)((rho - x * cos(radian)) / sin(radian));
+
+    if(y >= 0 && y < (self->height - 1)) {
+      *(self->data + ((y * self->width + x) * self->color_type + 0)) = 0x00;
+      *(self->data + ((y * self->width + x) * self->color_type + 1)) = 0x00;
+      *(self->data + ((y * self->width + x) * self->color_type + 2)) = 0xFF;
+    }
+  }
+}
 
 int
 main(int argc, char *argv[]) {
@@ -112,7 +126,7 @@ main(int argc, char *argv[]) {
   k_cptr = ncv2cv(k_nptr);
 
   output_name_s = get_output_filename(argv[argc - 1], "kmeans", "png");
-  ncv_png_write(output_name_s, k_nptr);
+  //ncv_png_write(output_name_s, k_nptr);
 
   // 反転
   //ncv_inverse(k_nptr);
@@ -160,29 +174,28 @@ main(int argc, char *argv[]) {
   }
   // 画像出力
   output_name_s = get_output_filename(argv[argc - 1], "pre_processed", "png");
-  ncv_png_write(output_name_s, ncv_target_ptr);
+  //ncv_png_write(output_name_s, ncv_target_ptr);
 
 
   // Harris コーナー検出の実行
-  double harris_threshold;
-  harris_point_t *harris_points, *harris_cursor;
+  harris_point_t *harris_points;
+
 
   fprintf(stderr, "* Harris コーナー検出実行\n");
-  harris_points = harris_corner_detector(ncv_target_ptr, &harris_threshold);
+  harris_points = harris_corner_detector(ncv_target_ptr);
+  fprintf(stderr, "* Harris コーナー検出個数: %ld\n", harris_point_count(harris_points));
 
+#if 1
+  harris_point_t *harris_cursor;
 
   // 元画像に対してい, 検出した点を中心にした円を描く
   fprintf(stderr, "* 元画像(%s)に円を描く.\n", argv[argc - 1]);
-#if 1
   for(harris_cursor  = harris_points;
       harris_cursor != NULL;
       harris_cursor  = harris_cursor->next) {
-    if(harris_cursor->rate >= harris_threshold) {
-      //printf("(%d, %d)\n", pp->x, pp->y);
-      cv_draw_circuit(target_ptr,
-          harris_cursor->x, harris_cursor->y,
-          8, 8);
-    }
+    cv_draw_circuit(target_ptr,
+        harris_cursor->x, harris_cursor->y,
+        8, 8);
   }
   // 保存
   output_name_s = get_output_filename(argv[argc - 1], "harris", "png");
@@ -190,26 +203,55 @@ main(int argc, char *argv[]) {
 #endif
 
 
+
+  // Hough 変換
+  /* Test */ {
+#define THETA_UNIT 0.1
+    typedef struct _vote_t _vote_t;
+    struct _vote_t {
+      double *rhos;
+      _vote_t *next;
+    };
+
+    double theta, rho;
+    harris_point_t *hrc;
+
+    for(hrc = harris_points; hrc != NULL; hrc = hrc->next) {
+      for(theta = -90.0; theta <= 90.0; theta += THETA_UNIT) {
+        const double _radian = (theta * M_PI) / 180.0;
+        rho = hrc->x * cos(_radian) + hrc->y * sin(_radian);
+      }
+    }
+  }
+
+
+#if 0
   // Hough変換
-  int theta_i;
-  hough_point_t **hp_ptr;
+  int32_t i;
+  double min_rho, max_rho, range_rho;
+  hough_point_t **hp_ptr, *hp_cur;
 
   fprintf(stderr, "* [T] Hough 変換\n");
   hp_ptr = run_hough_transform(harris_points, harris_threshold);
 
-#if 0
-  for(theta_i = 0; theta_i < NUMBER_OF_HOUGH_POINT; ++theta_i) {
-    const hough_point_t *_hp = *(hp_ptr + theta_i), *_hp_c;
-    const double _base_rho = _hp->rho;
 
-    for(_hp_c = _hp->next; _hp_c != NULL; _hp_c = _hp_c->next) {
-      double _d_rho = _hp_c->rho - _base_rho;
+  min_rho = (*hp_ptr)->rho;
+  max_rho = (*hp_ptr)->rho;
+  for(i = 0; i < NUMBER_OF_HOUGH_POINT; ++i) {
+    hough_point_t *_hp = *(hp_ptr + i);
+
+    for(hp_cur = _hp; hp_cur != NULL; hp_cur = hp_cur->next) {
+      if(min_rho > hp_cur->rho) {
+        min_rho = hp_cur->rho;
+      } else if(max_rho < hp_cur->rho) {
+        max_rho = hp_cur->rho;
+      }
     }
   }
-#endif
+  range_rho = max_rho - min_rho;
 
   hough_points_release(hp_ptr);
-
+#endif
 
   harris_point_release(harris_points);
 

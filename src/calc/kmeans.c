@@ -62,23 +62,21 @@ _calc_out_threshold(const gcenter_t *g_ptr, size_t size) {
   // Grayscale
   for(i = 0; i < size; ++i) {
     const gcenter_t *_g = (g_ptr + i);
-
     *(scales + i) = (*(_g->value + 0) * 0.2126)
       + (*(_g->value + 1) * 0.7152)
       + (*(_g->value + 2) * 0.0722);
-
-    fprintf(stderr, "* %f\n", *(scales + i));
   }
 
-  const int (*_comp_scale)(const void *, const void *) = ({
-      int _comp_scale(const void *p1, const void *p2) {
-      return *(double *)p2 > *(double *)p1;
-      };
-      _comp_scale;
+  int (*_comp_scale)(const void *, const void *) = ({
+      int __comparator(const void *p1, const void *p2)
+      { return *(double *)p2 > *(double *)p1; };
+      __comparator;
       });
 
   //qsort(scales, size, sizeof(double *), comp_scale);
-  qsort(scales, size, sizeof(double *), _comp_scale);
+  qsort((void *)scales, size, sizeof(double *), _comp_scale);
+
+
   ret_value = *(scales + (size - 2));
 
   return ret_value;
