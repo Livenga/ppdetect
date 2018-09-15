@@ -9,7 +9,24 @@
 #include "canvas/canvas.h"
 
 
-#define _K (0.24)
+
+static harris_point_t *
+harris_point_copy(harris_point_t *hrp) {
+  harris_point_t *p;
+
+  if((p = (harris_point_t *)calloc(1, sizeof(harris_point_t))) != NULL) {
+    p->x    = hrp->x;
+    p->y    = hrp->y;
+    p->rate = hrp->rate;
+    p->next = NULL;
+  }
+
+  return p;
+}
+
+
+// 経験上で定数を決定
+#define K (0.24)
 //#define _PPD_OUTPUT_CSV
 
 
@@ -25,20 +42,6 @@ harris_point_new(uint32_t x, uint32_t y, double rate) {
   }
 
   return p_ptr;
-}
-
-harris_point_t *
-harris_point_copy(harris_point_t *hrp) {
-  harris_point_t *p;
-
-  if((p = (harris_point_t *)calloc(1, sizeof(harris_point_t))) != NULL) {
-    p->x    = hrp->x;
-    p->y    = hrp->y;
-    p->rate = hrp->rate;
-    p->next = NULL;
-  }
-
-  return p;
 }
 
 size_t
@@ -121,7 +124,7 @@ harris_corner_detector(const ncanvas_t *ncv_cptr) {
       _l1 = (-_b + sqrt(_b * _b - 4.0 * _c)) / 2.0;
       _l2 = (-_b - sqrt(_b * _b - 4.0 * _c)) / 2.0;
 
-      _rate     = (_l1 * _l2) - (_K * ((_l1 + _l2) * (_l1 + _l2)));
+      _rate     = (_l1 * _l2) - (K * ((_l1 + _l2) * (_l1 + _l2)));
       _abs_rate = (_rate > 0.0) ? _rate : -_rate;
 
       if(_abs_rate != 1.0) {
