@@ -1,8 +1,8 @@
 #!/usr/bin/bash
 
-if [ $# -eq 0 ]
+if [ ! $# -eq 2 ]
 then
-  echo "Usage: $0 [CSV FILE]"
+  echo "Usage: $0 [CSV FILE] [PLOT TYPE]"
   exit 0
 fi
 
@@ -17,7 +17,7 @@ FILE_NAME=`date +%Y-%m-%dT%H:%M:%S`"_plot.png"
 echo "set terminal png size 2400,1800; \
   set output '$FILE_NAME'; \
   set grid; \
-  set xlabel 'θ[deg]'; \
+  set xlabel 'θ[rad]'; \
   set ylabel 'ρ'; \
-  plot '$1' with lines
+  plot '$1' with $2
   " | gnuplot
