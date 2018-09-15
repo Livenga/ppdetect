@@ -174,7 +174,7 @@ main(int argc, char *argv[]) {
   }
   // 画像出力
   output_name_s = get_output_filename(argv[argc - 1], "pre_processed", "png");
-  //ncv_png_write(output_name_s, ncv_target_ptr);
+  ncv_png_write(output_name_s, ncv_target_ptr);
 
 
   // Harris コーナー検出の実行
@@ -185,7 +185,7 @@ main(int argc, char *argv[]) {
   harris_points = harris_corner_detector(ncv_target_ptr);
   fprintf(stderr, "* Harris コーナー検出個数: %ld\n", harris_point_count(harris_points));
 
-#if 1
+#if 0
   harris_point_t *harris_cursor;
 
   // 元画像に対してい, 検出した点を中心にした円を描く
@@ -205,26 +205,87 @@ main(int argc, char *argv[]) {
 
 
   // Hough 変換
-  /* Test */ {
-#define THETA_UNIT 0.1
-    typedef struct _vote_t _vote_t;
-    struct _vote_t {
-      double *rhos;
-      _vote_t *next;
-    };
+  hough_point_t *hough_points;
 
-    double theta, rho;
-    harris_point_t *hrc;
+  hough_points = run_hough_transform(harris_points);
+  if(hough_points != NULL) {
+    double _min_rho, _max_rho, _range_rho;
+    hough_point_t *_ho_cur;
 
-    for(hrc = harris_points; hrc != NULL; hrc = hrc->next) {
-      for(theta = -90.0; theta <= 90.0; theta += THETA_UNIT) {
-        const double _radian = (theta * M_PI) / 180.0;
-        rho = hrc->x * cos(_radian) + hrc->y * sin(_radian);
+
+    fprintf(stderr, "* Hough 変換: %ld\n", hough_point_count(hough_points));
+
+    // 最小値, 最大値の取得
+    _min_rho = hough_points->rho;
+    _max_rho = hough_points->rho;
+    for(_ho_cur = hough_points->next; _ho_cur != NULL; _ho_cur = _ho_cur->next) {
+      if(_min_rho > _ho_cur->rho) {
+        _min_rho = _ho_cur->rho;
+      } else if(_max_rho < _ho_cur->rho) {
+        _max_rho = _ho_cur->rho;
       }
     }
+    // 範囲(Range)
+    _range_rho = _max_rho - _min_rho;
+
+#define DEG2RAD(deg) (((deg) * M_PI) / 180.0)
+#define RAD2DEG(rad) (((rad) * 180.0) / M_PI)
+
+    const double _min_rad = DEG2RAD(-90.0),
+          _max_rad   = DEG2RAD(90.0),
+          _range_rad = _max_rad - _min_rad;
+
+
+    uint32_t *vote;
+    vote = (uint32_t *)calloc(1025 * 181, sizeof(uint32_t));
+
+   // 正規化
+   for(_ho_cur = hough_points; _ho_cur != NULL; _ho_cur = _ho_cur->next) {
+     int32_t i_rho, i_theta;
+     uint32_t offset;
+
+     _ho_cur->rho    = (_ho_cur->rho    - _min_rho) / _range_rho;
+     _ho_cur->radian = (_ho_cur->radian - _min_rad) / _range_rad;
+
+     i_rho   = (int32_t)(1024 * _ho_cur->rho);
+     i_theta = (int32_t)(RAD2DEG(_ho_cur->radian * _range_rad + _min_rad) + 90);
+
+     offset = i_rho * 180 + i_theta;
+     ++(*(vote + offset));
+   }
+
+   // rho, theta
+#if 0 // dsc0023_5.png
+   hough_draw_line(target_ptr, 71.513, -0.9091);
+   hough_draw_line(target_ptr, 80.3, -0.924);
+   hough_draw_line(target_ptr, 94.42, 0.818);
+   hough_draw_line(target_ptr, 230.305, 0.8);
+   hough_draw_line(target_ptr, 112.12, -1.03641);
+   hough_draw_line(target_ptr, 0.0, -0.7455);
+#endif
+
+
+#if 0
+   int i, j;
+   for(i = 0; i <= 1024; ++i) {
+     for(j = 0; j <= 180; ++j) {
+       uint32_t v = *(vote + (i * 181 + j));
+
+       if(v > 5) {
+         double rad = DEG2RAD((j - 90));
+         double rho = (((double)i / 1024.0) * _range_rho) + _min_rho;
+
+         hough_draw_line(target_ptr, rho, rad);
+       }
+     }
+   }
+
+#endif
+  output_name_s = get_output_filename(argv[argc - 1], "hough", "png");
+  cv_png_write(output_name_s, target_ptr);
+
+  hough_point_release(hough_points);
   }
-
-
 #if 0
   // Hough変換
   int32_t i;

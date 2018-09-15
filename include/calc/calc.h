@@ -38,9 +38,14 @@ hough_point_release(hough_point_t *p);
 extern void
 hough_points_release(hough_point_t **hp_ptr);
 
+extern hough_point_t *
+run_hough_transform(
+    const harris_point_t *hr_points);
+#if 0
 extern hough_point_t **
 run_hough_transform(
     const harris_point_t *harris_points,
     const double          harris_threshold);
+#endif
 
 #endif

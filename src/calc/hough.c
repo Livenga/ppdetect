@@ -5,7 +5,7 @@
 #include <math.h>
 
 #include "ppd_type.h"
-#include "calc/calc_type.h"
+#include "calc/calc.h"
 #include "canvas/canvas.h"
 #include "util.h"
 
@@ -72,6 +72,58 @@ hough_points_release(hough_point_t **hp_ptr) {
 
 
 
+#define HOUGH_THETA_STEP (1.0)
+
+hough_point_t *
+run_hough_transform(
+    const harris_point_t *hr_points) {
+  const harris_point_t *hr_cur;
+
+  hough_point_t *ho_root, *ho_cur;
+  double theta, radian, rho;
+
+#ifdef _ENABLE_CSV
+  FILE *csv_fp;
+  char *csv_path;
+
+  csv_path = get_output_filename("hough", NULL, "csv");
+  csv_fp   = fopen(csv_path, "w");
+#endif
+
+  if(hr_points == NULL) { return NULL; }
+
+
+  ho_root = NULL;
+  ho_cur  = NULL;
+  for(hr_cur = hr_points; hr_cur != NULL; hr_cur = hr_cur->next) {
+    for(theta = -90.0; theta <= 90.0; theta += (HOUGH_THETA_STEP)) {
+      radian = (theta * M_PI) / 180.0;
+      rho    = hr_cur->x * cos(radian) + hr_cur->y * sin(radian);
+
+#ifdef _ENABLE_CSV
+      if(csv_fp != NULL) {
+        fprintf(csv_fp, "%f %f\n", radian, rho);
+      }
+#endif
+
+      if(ho_root == NULL) {
+        ho_root = hough_point_new(hr_cur->x, hr_cur->y, radian, rho);
+        ho_cur = ho_root;
+      } else {
+        ho_cur->next = hough_point_new(hr_cur->x, hr_cur->y, radian, rho);
+        ho_cur = ho_cur->next;
+      }
+    }
+  }
+
+#ifdef _ENABLE_CSV
+  if(csv_fp) {
+    fclose(csv_fp);
+  }
+#endif
+  return ho_root;
+}
+#if 0
 hough_point_t **
 run_hough_transform(
     const harris_point_t *harris_points,
@@ -139,3 +191,4 @@ run_hough_transform(
 
   return hp_root;
 }
+#endif
