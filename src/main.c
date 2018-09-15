@@ -47,7 +47,7 @@ main(int argc, char *argv[]) {
     {"enable-binarise", no_argument, 0, 'b'},
     {0, 0, 0, 0},
   };
-  
+
   int opt, longindex;
 
   size_t div_size = 5;
@@ -55,7 +55,7 @@ main(int argc, char *argv[]) {
          f_enable_gaussian = FALSE,
          f_enable_binarise = FALSE;
 
-  
+
   if(argc < 2) {
     fprintf(stderr, "%s: Operand Error.\n", argv[0]);
     return EOF;
@@ -141,9 +141,12 @@ main(int argc, char *argv[]) {
   //
   // アンチエイリアスをしていないため, 傾斜が存在すると検出精度が低下.
   // (検出点が多くなってしまうことを精度の低下としている)
+  // 2018/09/16
+  // 斜辺上の検出点が多くなれば, 直線に近い状態である場合に限るが
+  // Hough変換を行う際に有利になる.
   if(f_enable_gaussian == TRUE) {
     filter_t *f_gaussian;
-    
+
     //
     if(f_enable_binarise == TRUE) {
       fprintf(stderr, "* 2値化処理の実行(閾値: %f)\n", bin_threshold);
@@ -185,7 +188,7 @@ main(int argc, char *argv[]) {
   harris_points = harris_corner_detector(ncv_target_ptr);
   fprintf(stderr, "* Harris コーナー検出個数: %ld\n", harris_point_count(harris_points));
 
-#if 0
+#if 1
   harris_point_t *harris_cursor;
 
   // 元画像に対してい, 検出した点を中心にした円を描く
@@ -215,9 +218,11 @@ main(int argc, char *argv[]) {
 
     fprintf(stderr, "* Hough 変換: %ld\n", hough_point_count(hough_points));
 
+
     // 最小値, 最大値の取得
     _min_rho = hough_points->rho;
     _max_rho = hough_points->rho;
+
     for(_ho_cur = hough_points->next; _ho_cur != NULL; _ho_cur = _ho_cur->next) {
       if(_min_rho > _ho_cur->rho) {
         _min_rho = _ho_cur->rho;
@@ -231,88 +236,94 @@ main(int argc, char *argv[]) {
 #define DEG2RAD(deg) (((deg) * M_PI) / 180.0)
 #define RAD2DEG(rad) (((rad) * 180.0) / M_PI)
 
-    const double _min_rad = DEG2RAD(-90.0),
-          _max_rad   = DEG2RAD(90.0),
+    const uint32_t _rho_size = (uint32_t)_max_rho + 1;
+    const double   _min_rad  = DEG2RAD(-90.0), _max_rad  = DEG2RAD(90.0),
           _range_rad = _max_rad - _min_rad;
 
 
-    uint32_t *vote;
-    vote = (uint32_t *)calloc(1025 * 181, sizeof(uint32_t));
+    // 多数決
+    typedef struct _vote_point_t {
+      double rho, radian;
+      uint32_t count;
+    } vote_point_t;
 
-   // 正規化
-   for(_ho_cur = hough_points; _ho_cur != NULL; _ho_cur = _ho_cur->next) {
-     int32_t i_rho, i_theta;
-     uint32_t offset;
+    vote_point_t *vote_pp;
+    vote_pp = (vote_point_t *)calloc(_rho_size * 181, sizeof(vote_point_t));
 
-     _ho_cur->rho    = (_ho_cur->rho    - _min_rho) / _range_rho;
-     _ho_cur->radian = (_ho_cur->radian - _min_rad) / _range_rad;
+    // 整数型として, rho, radian を二次元空間で投票を
+    // 行うため正規化をする.
+    for(_ho_cur = hough_points; _ho_cur != NULL; _ho_cur = _ho_cur->next) {
+      uint32_t offset, i_rho, i_theta;
+      vote_point_t *_vpp;
 
-     i_rho   = (int32_t)(1024 * _ho_cur->rho);
-     i_theta = (int32_t)(RAD2DEG(_ho_cur->radian * _range_rad + _min_rad) + 90);
+      //_ho_cur->rho    = (_ho_cur->rho    - _min_rho) / _range_rho;
+      //_ho_cur->radian = (_ho_cur->radian - _min_rad) / _range_rad;
 
-     offset = i_rho * 180 + i_theta;
-     ++(*(vote + offset));
-   }
+      i_rho   = (int32_t)(_rho_size * ((_ho_cur->rho - _min_rho) / _range_rho));
+      i_theta = (int32_t)(RAD2DEG(((_ho_cur->radian - _min_rad) / _range_rad)
+            * _range_rad + _min_rad) + 90);
+      offset  = i_rho * 180 + i_theta;
 
-   // rho, theta
-#if 0 // dsc0023_5.png
-   hough_draw_line(target_ptr, 71.513, -0.9091);
-   hough_draw_line(target_ptr, 80.3, -0.924);
-   hough_draw_line(target_ptr, 94.42, 0.818);
-   hough_draw_line(target_ptr, 230.305, 0.8);
-   hough_draw_line(target_ptr, 112.12, -1.03641);
-   hough_draw_line(target_ptr, 0.0, -0.7455);
-#endif
-
-
-#if 0
-   int i, j;
-   for(i = 0; i <= 1024; ++i) {
-     for(j = 0; j <= 180; ++j) {
-       uint32_t v = *(vote + (i * 181 + j));
-
-       if(v > 5) {
-         double rad = DEG2RAD((j - 90));
-         double rho = (((double)i / 1024.0) * _range_rho) + _min_rho;
-
-         hough_draw_line(target_ptr, rho, rad);
-       }
-     }
-   }
-
-#endif
-  output_name_s = get_output_filename(argv[argc - 1], "hough", "png");
-  cv_png_write(output_name_s, target_ptr);
-
-  hough_point_release(hough_points);
-  }
-#if 0
-  // Hough変換
-  int32_t i;
-  double min_rho, max_rho, range_rho;
-  hough_point_t **hp_ptr, *hp_cur;
-
-  fprintf(stderr, "* [T] Hough 変換\n");
-  hp_ptr = run_hough_transform(harris_points, harris_threshold);
-
-
-  min_rho = (*hp_ptr)->rho;
-  max_rho = (*hp_ptr)->rho;
-  for(i = 0; i < NUMBER_OF_HOUGH_POINT; ++i) {
-    hough_point_t *_hp = *(hp_ptr + i);
-
-    for(hp_cur = _hp; hp_cur != NULL; hp_cur = hp_cur->next) {
-      if(min_rho > hp_cur->rho) {
-        min_rho = hp_cur->rho;
-      } else if(max_rho < hp_cur->rho) {
-        max_rho = hp_cur->rho;
-      }
+      _vpp    = (vote_pp + offset);
+      _vpp->rho    = _ho_cur->rho;
+      _vpp->radian = _ho_cur->radian;
+      ++_vpp->count;
     }
-  }
-  range_rho = max_rho - min_rho;
 
-  hough_points_release(hp_ptr);
+    // カウントソート
+    int (*_vote_comp)(const void *, const void *) = ({
+        int __comparator(const void *p1, const void *p2) {
+        return ((vote_point_t *)p2)->count > ((vote_point_t *)p1)->count;
+        }
+        __comparator;
+        });
+    qsort((void *)vote_pp, _rho_size * 181, sizeof(vote_point_t), _vote_comp);
+
+    int _i;
+    for(_i = 0; _i < 181; ++_i) {
+      fprintf(stderr, "  * (%3u) %f, %f\n",
+          (vote_pp + _i)->count,
+          (vote_pp + _i)->rho,
+          (vote_pp + _i)->radian);
+      hough_draw_line(target_ptr, (vote_pp + _i)->rho, (vote_pp + _i)->radian);
+    }
+#if 0
+    int i, j;
+    FILE *vote_csv_fp;
+
+    output_name_s = get_output_filename(argv[argc - 1], "vote", "csv");
+    if((vote_csv_fp = fopen(output_name_s, "w")) != NULL) {
+      for(i = 0; i < _rho_size; ++i) {
+        for(j = 0; j < 181; ++j) {
+          fprintf(vote_csv_fp, "%d %d %u\n", j, i, (vote_pp + (i * 180 + j))->count);
+        }
+        fprintf(vote_csv_fp, "\n");
+      }
+
+      fclose(vote_csv_fp);
+    }
 #endif
+
+
+    memset ((void *)vote_pp, '\0', sizeof(vote_point_t) * _rho_size * 181);
+    free((void *)vote_pp);
+    vote_pp = NULL;
+    // rho, theta
+#if 0 // dsc0023_5.png
+    hough_draw_line(target_ptr, 71.513, -0.9091);
+    hough_draw_line(target_ptr, 80.3, -0.924);
+    hough_draw_line(target_ptr, 94.42, 0.818);
+    hough_draw_line(target_ptr, 230.305, 0.8);
+    hough_draw_line(target_ptr, 112.12, -1.03641);
+    hough_draw_line(target_ptr, 0.0, -0.7455);
+#endif
+
+
+    output_name_s = get_output_filename(argv[argc - 1], "hough", "png");
+    cv_png_write(output_name_s, target_ptr);
+
+    hough_point_release(hough_points);
+  }
 
   harris_point_release(harris_points);
 
