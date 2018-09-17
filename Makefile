@@ -1,30 +1,28 @@
-CC      = gcc
-FLAGS   = -g -Wall
+CC 		  = gcc
+OPTION  = -O2 -Wall -g
+LINK 	  = -lm -lpng -ljpeg
 INCLUDE = -I./include
-LINK    = -lpng -lz -lm
-OPTION = -Wall -g -O2
 
-TARGET = ppdetect
-OBJDIR = objs
+TARGET  = ppdetect
+OBJDIR  = objs
 
-SOURCE = $(shell find src/ -name \*.c)
-OBJS   = $(addprefix $(OBJDIR)/, $(patsubst %.c, %.o, $(SOURCE)))
-BINDIR = $(dir $(OBJS))
+SRC  = $(shell find src/ -name \*.c)
+OBJS = $(addprefix $(OBJDIR)/,$(patsubst %.c,%.o,$(SRC)))
+
+OBJDIRS = $(sort $(dir $(OBJS)))
+
 
 default:
-	[ -d  $(OBJDIR)  ] || mkdir -pv $(OBJDIR)
-	[ -d "$(BINDIR)" ] || mkdir -pv $(BINDIR)
+	[ -d  $(OBJDIR)   ] || mkdir -v $(OBJDIR)
+	[ -d "$(OBJDIRS)" ] || mkdir -pv $(OBJDIRS)
 	make $(TARGET)
 
 $(TARGET):$(OBJS)
-	$(CC) -o $@ $^ $(FLAGS) $(LINK)
+	$(CC) -o $@ $^ $(OPTION) $(LINK)
 
 $(OBJDIR)/%.o:%.c
-	$(CC) -o $@ -c $< $(FLAGS) $(INCLUDE) $(OPTION)
-
-clear:
-	[ ! -d $(OBJDIR) ] || rm -rv $(OBJDIR)
-	[ ! -f $(TARGET) ] || rm -v $(TARGET)
+	$(CC) -c -o $@ $< $(INCLUDE) $(OPTION)
 
 all:
-	make clear default
+	rm -rv $(OBJDIR) $(TARGET)
+	make default
