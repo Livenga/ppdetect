@@ -9,8 +9,9 @@
 #include "ppd_type.h"
 #include "util.h"
 #include "calc/calc.h"
-#include "calc/calc.h"
 #include "canvas/canvas.h"
+
+#include "temp.h"
 
 
 bool_t f_color_correction = 0;
@@ -181,12 +182,15 @@ main(int argc, char *argv[]) {
 
 
   // Harris コーナー検出の実行
+  size_t nof_harris_points;
   harris_point_t *harris_points;
 
 
   fprintf(stderr, "* Harris コーナー検出実行\n");
-  harris_points = harris_corner_detector(ncv_target_ptr);
-  fprintf(stderr, "* Harris コーナー検出個数: %ld\n", harris_point_count(harris_points));
+  harris_points     = harris_corner_detector(ncv_target_ptr);
+  nof_harris_points = harris_point_count(harris_points);
+
+  fprintf(stderr, "* Harris コーナー検出個数: %ld\n", nof_harris_points);
 
 #if 1
   harris_point_t *harris_cursor;
@@ -242,11 +246,6 @@ main(int argc, char *argv[]) {
 
 
     // 多数決
-    typedef struct _vote_point_t {
-      double rho, radian;
-      uint32_t count;
-    } vote_point_t;
-
     vote_point_t *vote_pp;
     vote_pp = (vote_point_t *)calloc(_rho_size * 181, sizeof(vote_point_t));
 
@@ -264,9 +263,8 @@ main(int argc, char *argv[]) {
             * _range_rad + _min_rad) + 90);
       offset  = i_rho * 180 + i_theta;
 
-      _vpp    = (vote_pp + offset);
-      _vpp->rho    = _ho_cur->rho;
-      _vpp->radian = _ho_cur->radian;
+      _vpp         = (vote_pp + offset);
+      _vpp->point  = _ho_cur;
       ++_vpp->count;
     }
 
@@ -279,15 +277,18 @@ main(int argc, char *argv[]) {
         });
     qsort((void *)vote_pp, _rho_size * 181, sizeof(vote_point_t), _vote_comp);
 
-    int _i;
-    for(_i = 0; _i < 181; ++_i) {
-      fprintf(stderr, "  * (%3u) %f, %f\n",
-          (vote_pp + _i)->count,
-          (vote_pp + _i)->rho,
-          (vote_pp + _i)->radian);
-      hough_draw_line(target_ptr, (vote_pp + _i)->rho, (vote_pp + _i)->radian);
+    {
+      int _i;
+
+      for(_i = 0; _i < _rho_size * 181 / 100; ++_i) {
+        vote_point_t *p = (vote_pp + _i);
+        hough_draw_line(target_ptr, p->point->rho, p->point->radian);
+      }
+
+      output_name_s = get_output_filename(argv[argc - 1], "draw_line", "png");
+      cv_png_write(output_name_s, target_ptr);
     }
-#if 0
+ #if 0
     int i, j;
     FILE *vote_csv_fp;
 
@@ -316,11 +317,9 @@ main(int argc, char *argv[]) {
     hough_draw_line(target_ptr, 230.305, 0.8);
     hough_draw_line(target_ptr, 112.12, -1.03641);
     hough_draw_line(target_ptr, 0.0, -0.7455);
-#endif
-
-
     output_name_s = get_output_filename(argv[argc - 1], "hough", "png");
     cv_png_write(output_name_s, target_ptr);
+#endif
 
     hough_point_release(hough_points);
   }
