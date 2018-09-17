@@ -4,7 +4,7 @@
 #include "canvas/canvas.h"
 #include "calc/calc_type.h"
 
-/* src/calc/calc.c */
+/* src/calc/math.c */
 extern double
 calc_euclid(const size_t size,
     const double *p1, const double *p2);
