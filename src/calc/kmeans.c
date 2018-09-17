@@ -7,38 +7,8 @@
 #include "ppd_type.h"
 
 #include "canvas/canvas.h"
-#include "calc/calc_type.h"
+#include "calc/calc.h"
 #include "calc/k-means.h"
-
-
-#if 0
-static double
-_calc_euclid(cluster_t *c_ptr, gcenter_t *g_ptr) {
-  double v0, v1, v2;
-
-  v0 = c_ptr->value[0] - g_ptr->value[0];
-  v1 = c_ptr->value[1] - g_ptr->value[1];
-  v2 = c_ptr->value[2] - g_ptr->value[2];
-
-  return sqrt(v0 * v0 + v1 * v1 + v2 * v2);
-}
-#else
-static double
-_calc_euclid(const double *ptr0, const double *ptr1, size_t size) {
-  int i;
-  double sum;
-
-  sum = 0.0;
-  for(i = 0; i < size; ++i) {
-    double v;
-
-    v = *(ptr0 + i) - *(ptr1 + i);
-    sum += (v * v);
-  }
-
-  return sqrt(sum);
-}
-#endif
 
 
 #if 0
@@ -165,7 +135,7 @@ run_kmeans(const ncanvas_t *ncv_cptr, const size_t div_size,
 
       // ユークリッド距離
       for(j = 0; j < div_size; ++j) {
-        *(euclids + j) = _calc_euclid(_c_ptr->value, (gcenters + j)->value, 3);
+        *(euclids + j) = calc_euclid(3, _c_ptr->value, (gcenters + j)->value);
       }
 
       // クラスタを最も近い重心に割り当てる

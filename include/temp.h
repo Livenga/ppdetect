@@ -18,4 +18,8 @@ typedef struct _vote_point_t {
 } vote_point_t;
 
 
+typedef struct _score_t {
+  int x, y;
+  double score;
+} score_t;
 #endif

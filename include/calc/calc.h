@@ -4,6 +4,11 @@
 #include "canvas/canvas.h"
 #include "calc/calc_type.h"
 
+/* src/calc/calc.c */
+extern double
+calc_euclid(const size_t size,
+    const double *p1, const double *p2);
+
 /* src/calc/histogram.c */
 extern void
 run_histogram(const canvas_t *cv_cptr);

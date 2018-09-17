@@ -49,6 +49,7 @@ main(int argc, char *argv[]) {
     {0, 0, 0, 0},
   };
 
+  int i, j;
   int opt, longindex;
 
   size_t div_size = 5;
@@ -192,7 +193,7 @@ main(int argc, char *argv[]) {
 
   fprintf(stderr, "* Harris コーナー検出個数: %ld\n", nof_harris_points);
 
-#if 1
+#if 0
   harris_point_t *harris_cursor;
 
   // 元画像に対してい, 検出した点を中心にした円を描く
@@ -240,14 +241,15 @@ main(int argc, char *argv[]) {
 #define DEG2RAD(deg) (((deg) * M_PI) / 180.0)
 #define RAD2DEG(rad) (((rad) * 180.0) / M_PI)
 
-    const uint32_t _rho_size = (uint32_t)_max_rho + 1;
-    const double   _min_rad  = DEG2RAD(-90.0), _max_rad  = DEG2RAD(90.0),
+    const uint32_t _rho_size  = (uint32_t)_max_rho + 1;
+    const uint32_t _vote_size = _rho_size * 181;
+    const double   _min_rad   = DEG2RAD(-90.0), _max_rad  = DEG2RAD(90.0),
           _range_rad = _max_rad - _min_rad;
 
 
     // 多数決
     vote_point_t *vote_pp;
-    vote_pp = (vote_point_t *)calloc(_rho_size * 181, sizeof(vote_point_t));
+    vote_pp = (vote_point_t *)calloc(_vote_size, sizeof(vote_point_t));
 
     // 整数型として, rho, radian を二次元空間で投票を
     // 行うため正規化をする.
@@ -261,13 +263,36 @@ main(int argc, char *argv[]) {
       i_rho   = (int32_t)(_rho_size * ((_ho_cur->rho - _min_rho) / _range_rho));
       i_theta = (int32_t)(RAD2DEG(((_ho_cur->radian - _min_rad) / _range_rad)
             * _range_rad + _min_rad) + 90);
-      offset  = i_rho * 180 + i_theta;
+      offset  = i_rho * 181 + i_theta;
 
       _vpp         = (vote_pp + offset);
       _vpp->point  = _ho_cur;
       ++_vpp->count;
     }
 
+
+#if 0
+    // 多数決で投票したデータを(x, y, Count)の三次元データとしてCSVファイルに出力
+    FILE *vote_csv_fp;
+
+    output_name_s = get_output_filename(argv[argc - 1], "vote", "csv");
+    if((vote_csv_fp = fopen(output_name_s, "w")) != NULL) {
+      for(i = 0; i < _rho_size; ++i) {
+        for(j = 0; j < 181; ++j) {
+          fprintf(vote_csv_fp, "%d %d %u\n", j, i, (vote_pp + (i * 181 + j))->count);
+        }
+        fprintf(vote_csv_fp, "\n");
+      }
+
+      fclose(vote_csv_fp);
+    }
+#endif
+
+    //memset((void *)scores, '\0', sizeof(score_t) * ((_rho_size * 181) / 100));
+    //free((void *)scores); scores = NULL;
+
+
+#if 1
     // カウントソート
     int (*_vote_comp)(const void *, const void *) = ({
         int __comparator(const void *p1, const void *p2) {
@@ -277,36 +302,25 @@ main(int argc, char *argv[]) {
         });
     qsort((void *)vote_pp, _rho_size * 181, sizeof(vote_point_t), _vote_comp);
 
-    {
-      int _i;
+    // 基準パラメータ
+    const vote_point_t *base_vpp = (vote_pp + 0);
 
-      for(_i = 0; _i < _rho_size * 181 / 100; ++_i) {
-        vote_point_t *p = (vote_pp + _i);
-        hough_draw_line(target_ptr, p->point->rho, p->point->radian);
-      }
-
-      output_name_s = get_output_filename(argv[argc - 1], "draw_line", "png");
-      cv_png_write(output_name_s, target_ptr);
+    // 基準パラメータと上位の直線パラメータを比較
+    fprintf(stderr, "* 検出した上位の直線パラメータ\n");
+    for(i = 1; i < 10; ++i) {
+      fprintf(stderr, "* %3d: %f, %f(%f)\t%f\n", i, (vote_pp + i)->point->rho,
+          (vote_pp + i)->point->radian, RAD2DEG((vote_pp + i)->point->radian),
+          calc_euclid(1, &base_vpp->point->radian, &(vote_pp + i)->point->radian)
+          );
+      hough_draw_line(target_ptr, (vote_pp + i)->point->rho, (vote_pp + i)->point->radian);
     }
- #if 0
-    int i, j;
-    FILE *vote_csv_fp;
 
-    output_name_s = get_output_filename(argv[argc - 1], "vote", "csv");
-    if((vote_csv_fp = fopen(output_name_s, "w")) != NULL) {
-      for(i = 0; i < _rho_size; ++i) {
-        for(j = 0; j < 181; ++j) {
-          fprintf(vote_csv_fp, "%d %d %u\n", j, i, (vote_pp + (i * 180 + j))->count);
-        }
-        fprintf(vote_csv_fp, "\n");
-      }
-
-      fclose(vote_csv_fp);
-    }
+    output_name_s = get_output_filename(argv[argc - 1], "draw_line", "png");
+    cv_png_write(output_name_s, target_ptr);
 #endif
 
 
-    memset ((void *)vote_pp, '\0', sizeof(vote_point_t) * _rho_size * 181);
+    memset ((void *)vote_pp, '\0', sizeof(vote_point_t) * _vote_size);
     free((void *)vote_pp);
     vote_pp = NULL;
     // rho, theta
