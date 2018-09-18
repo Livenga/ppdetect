@@ -16,3 +16,8 @@ calc_euclid(
   }
   return sqrt(sum);
 }
+
+double
+calc_slope(double radian) {
+  return -1.0 / tan(radian);
+}

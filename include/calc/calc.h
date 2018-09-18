@@ -8,6 +8,9 @@
 extern double
 calc_euclid(const size_t size,
     const double *p1, const double *p2);
+extern double
+calc_slope(double radian);
+
 
 /* src/calc/histogram.c */
 extern void
