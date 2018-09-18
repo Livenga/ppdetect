@@ -13,6 +13,9 @@
 
 #include "temp.h"
 
+#define DEG2RAD(deg) (((deg) * M_PI) / 180.0)
+#define RAD2DEG(rad) (((rad) * 180.0) / M_PI)
+
 
 bool_t f_color_correction = 0;
 
@@ -22,18 +25,28 @@ static void
 print_version(const char *app);
 
 void
-hough_draw_line(canvas_t *self, double rho, double radian) {
+hough_draw_line_c(canvas_t *self, double rho, double radian, color_t color) {
   int x, y;
 
   for(x = 0; x < self->width; ++x) {
-    y = (int)((rho - x * cos(radian)) / sin(radian));
+    double _a = -x  / tan(radian),
+           _c = (radian != 0) ? rho / sin(radian) : 0.0;
+
+    y = _a + _c;
 
     if(y >= 0 && y < (self->height - 1)) {
-      *(self->data + ((y * self->width + x) * self->color_type + 0)) = 0x00;
-      *(self->data + ((y * self->width + x) * self->color_type + 1)) = 0x00;
-      *(self->data + ((y * self->width + x) * self->color_type + 2)) = 0xFF;
+      *(self->data + ((y * self->width + x) * self->color_type + 0)) = color.r;
+      *(self->data + ((y * self->width + x) * self->color_type + 1)) = color.g;
+      *(self->data + ((y * self->width + x) * self->color_type + 2)) = color.b;
     }
   }
+}
+
+void
+hough_draw_line(canvas_t *self, double rho, double radian) {
+  const color_t blue = {0x00, 0x00, 0xFF}, red = {0xFF, 0x00, 0x00};
+
+  hough_draw_line_c(self, rho, radian, blue);
 }
 
 int
@@ -193,7 +206,7 @@ main(int argc, char *argv[]) {
 
   fprintf(stderr, "* Harris コーナー検出個数: %ld\n", nof_harris_points);
 
-#if 0
+#if 1
   harris_point_t *harris_cursor;
 
   // 元画像に対してい, 検出した点を中心にした円を描く
@@ -207,7 +220,7 @@ main(int argc, char *argv[]) {
   }
   // 保存
   output_name_s = get_output_filename(argv[argc - 1], "harris", "png");
-  cv_png_write(output_name_s, target_ptr);
+  //cv_png_write(output_name_s, target_ptr);
 #endif
 
 
@@ -238,8 +251,6 @@ main(int argc, char *argv[]) {
     // 範囲(Range)
     _range_rho = _max_rho - _min_rho;
 
-#define DEG2RAD(deg) (((deg) * M_PI) / 180.0)
-#define RAD2DEG(rad) (((rad) * 180.0) / M_PI)
 
     const uint32_t _rho_size  = (uint32_t)_max_rho + 1;
     const uint32_t _vote_size = _rho_size * 181;
@@ -300,20 +311,84 @@ main(int argc, char *argv[]) {
         }
         __comparator;
         });
-    qsort((void *)vote_pp, _rho_size * 181, sizeof(vote_point_t), _vote_comp);
+    qsort((void *)vote_pp, _vote_size, sizeof(vote_point_t), _vote_comp);
 
     // 基準パラメータ
+#define TOP_N 64
     const vote_point_t *base_vpp = (vote_pp + 0);
+    const double base_offset = base_vpp->point->rho / sin(base_vpp->point->radian);
+    const double base_slope  = calc_slope(base_vpp->point->radian);
+
+    // 対になる基準線
+    vote_point_t *pol_vpp = NULL;
+    double emax_pol;
+
+
+    fprintf(stderr, "* 基準 rho: %f, radian: %f, slope: %f(%f)\n",
+        base_vpp->point->rho,
+        base_vpp->point->radian,
+        base_slope, RAD2DEG(base_slope));
+    hough_draw_line(target_ptr, base_vpp->point->rho, base_vpp->point->radian);
+
+#define X_OFFSET(rho, radian) (rho / cos(radian))
+#define Y_OFFSET(rho, radian) (rho / sin(radian))
+
+    const bool_t is_x = fabs((RAD2DEG(base_vpp->point->radian))) >= 45.0 ? FALSE : TRUE;
+    emax_pol = 0.0;
+    for(i = 1; i < TOP_N; ++i) {
+      vote_point_t *_vpp = (vote_pp + i);
+      double _slope, _e_slope, _offset, _e_offset;
+
+      if(_vpp->point == NULL) { continue; }
+
+      _slope   = calc_slope(_vpp->point->radian);
+      _e_slope = calc_euclid(1, &base_slope, &_slope);
+
+      if(_e_slope < 0.60) {
+        fprintf(stderr, "* diff: %f, %f\n",
+            _e_slope, _vpp->point->rho / sin(_vpp->point->radian));
+
+          _offset = (is_x == TRUE)
+            ? X_OFFSET(_vpp->point->rho, _vpp->point->radian)
+            : Y_OFFSET(_vpp->point->rho, _vpp->point->radian);
+
+        _e_offset = calc_euclid(1, &base_offset, &_offset);
+
+        if(_e_offset > emax_pol) {
+          emax_pol = _e_offset;
+          pol_vpp = _vpp;
+        }
+      }
+    }
+
+    const vote_point_t *vertical_vpp;
+    if(pol_vpp != NULL) {
+      fprintf(stderr, "* 対基準 rho: %f, radian: %f\n",
+          pol_vpp->point->rho, pol_vpp->point->radian);
+
+      hough_draw_line(target_ptr, pol_vpp->point->rho, pol_vpp->point->radian);
+      vertical_vpp = (fabs(base_vpp->point->radian) > fabs(pol_vpp->point->radian))
+        ? pol_vpp : base_vpp;
+    } else {
+      vertical_vpp = base_vpp;
+    }
+
+    const double rad90 = M_PI / 2.0;
+    for(i = 1; i < _vote_size; ++i) {
+      double _rad;
+      vote_point_t *_vpp = (vote_pp + i);
+
+      if(_vpp == NULL || _vpp->point == NULL
+          || _vpp == base_vpp || _vpp == vertical_vpp) { continue; }
+
+      _rad = vertical_vpp->point->radian - _vpp->point->radian;
+      _rad = calc_euclid(1, &rad90, &_rad);
+    }
 
     // 基準パラメータと上位の直線パラメータを比較
     fprintf(stderr, "* 検出した上位の直線パラメータ\n");
-    for(i = 1; i < 10; ++i) {
-      fprintf(stderr, "* %3d: %f, %f(%f)\t%f\n", i, (vote_pp + i)->point->rho,
-          (vote_pp + i)->point->radian, RAD2DEG((vote_pp + i)->point->radian),
-          calc_euclid(1, &base_vpp->point->radian, &(vote_pp + i)->point->radian)
-          );
-      hough_draw_line(target_ptr, (vote_pp + i)->point->rho, (vote_pp + i)->point->radian);
-    }
+    for(i = 0; i < TOP_N; ++i) {}
+
 
     output_name_s = get_output_filename(argv[argc - 1], "draw_line", "png");
     cv_png_write(output_name_s, target_ptr);
