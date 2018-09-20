@@ -24,6 +24,8 @@ print_help(const char *app);
 static void
 print_version(const char *app);
 
+
+
 void
 hough_draw_line_c(canvas_t *self, double rho, double radian, color_t color) {
   int x, y;
@@ -120,6 +122,7 @@ main(int argc, char *argv[]) {
 
   target_ptr = cv_png_read(argv[argc - 1]);
   n_ptr      = cv2ncv(target_ptr);
+  
 
   // ヒストグラムの生成
   if(f_histogram == TRUE) {
@@ -333,6 +336,7 @@ main(int argc, char *argv[]) {
 #define X_OFFSET(rho, radian) (rho / cos(radian))
 #define Y_OFFSET(rho, radian) (rho / sin(radian))
 
+    color_t c_yello = {0xFF, 0xFF, 0x00};
     const bool_t is_x = fabs((RAD2DEG(base_vpp->point->radian))) >= 45.0 ? FALSE : TRUE;
     emax_pol = 0.0;
     for(i = 1; i < TOP_N; ++i) {
@@ -366,28 +370,15 @@ main(int argc, char *argv[]) {
       fprintf(stderr, "* 対基準 rho: %f, radian: %f\n",
           pol_vpp->point->rho, pol_vpp->point->radian);
 
+
       hough_draw_line(target_ptr, pol_vpp->point->rho, pol_vpp->point->radian);
-      vertical_vpp = (fabs(base_vpp->point->radian) > fabs(pol_vpp->point->radian))
-        ? pol_vpp : base_vpp;
-    } else {
-      vertical_vpp = base_vpp;
+#if 0
+      // NOTE: 現在(2018/09/18)は検出した二直線上のに存在する, 最も端の2点を交点に代用
+#else
+      // XXX: 縦軸を探査する場合に使用
+      vertical_vpp = (fabs(base_vpp->point->radian) > fabs(pol_vpp->point->radian)) ? pol_vpp : base_vpp;
+#endif
     }
-
-    const double rad90 = M_PI / 2.0;
-    for(i = 1; i < _vote_size; ++i) {
-      double _rad;
-      vote_point_t *_vpp = (vote_pp + i);
-
-      if(_vpp == NULL || _vpp->point == NULL
-          || _vpp == base_vpp || _vpp == vertical_vpp) { continue; }
-
-      _rad = vertical_vpp->point->radian - _vpp->point->radian;
-      _rad = calc_euclid(1, &rad90, &_rad);
-    }
-
-    // 基準パラメータと上位の直線パラメータを比較
-    fprintf(stderr, "* 検出した上位の直線パラメータ\n");
-    for(i = 0; i < TOP_N; ++i) {}
 
 
     output_name_s = get_output_filename(argv[argc - 1], "draw_line", "png");

@@ -49,6 +49,12 @@ ncv_inverse(ncanvas_t *ncv_ptr);
 
 extern void
 ncv_binarize(ncanvas_t *ncv_ptr, double threshold);
+// 線形補間
+extern canvas_t *
+cv_bilinear(const canvas_t *cv_cptr, uint32_t width, uint32_t height);
+extern canvas_t *
+cv_bilinear_magnif(const canvas_t *cv_cptr, const double magnif);
+
 
 
 /* src/canvas/util.c */

@@ -3,10 +3,13 @@
 
 #include <stdint.h>
 
+#include "calc/calc_type.h"
+
 typedef uint8_t bool_t;
 
 #define TRUE  (bool_t)1
 #define FALSE (bool_t)0
+
 
 
 // 多数決構造
